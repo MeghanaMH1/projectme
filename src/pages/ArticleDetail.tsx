@@ -6,6 +6,22 @@ import { useAuthStore } from '../store/nhostAuthStore';
 import { Bookmark, BookmarkCheck, Share2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Reuse the same device ID function from Dashboard
+const getDeviceId = () => {
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('device_id', deviceId);
+  }
+  return deviceId;
+};
+
+// User articles storage key with device ID
+const getUserArticlesKey = () => {
+  const deviceId = getDeviceId();
+  return `userArticles_${deviceId}`;
+};
+
 export default function ArticleDetail() {
   const { articleId } = useParams();
   const navigate = useNavigate();
@@ -16,7 +32,8 @@ export default function ArticleDetail() {
   // Check localStorage for the article if it starts with "local-"
   React.useEffect(() => {
     if (articleId?.startsWith('local-')) {
-      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const userArticlesKey = getUserArticlesKey();
+      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       setLocalArticle(article || null);
     }
@@ -54,7 +71,8 @@ export default function ArticleDetail() {
 
     // For local articles, handle saving in localStorage
     if (article.id.startsWith('local-')) {
-      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const userArticlesKey = getUserArticlesKey();
+      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
       const updatedArticles = userArticles.map((a: any) => {
         if (a.id === article.id) {
           return {
@@ -70,7 +88,7 @@ export default function ArticleDetail() {
         return a;
       });
 
-      localStorage.setItem('userArticles', JSON.stringify(updatedArticles));
+      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
       // Force re-render to show updated saved state
       setLocalArticle(updatedArticles.find((a: any) => a.id === article.id));
     }

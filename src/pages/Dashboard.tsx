@@ -6,6 +6,7 @@ import NewsCard from '../components/NewsCard';
 import NewsFilters from '../components/NewsFilters';
 import { Newspaper, AlertCircle, PenSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { sampleArticles } from '../util/sampleArticles';
 
 interface Article {
   id: string;
@@ -20,17 +21,80 @@ interface Article {
   isSaved: boolean;
 }
 
+// Generate a device ID or get existing one
+const getDeviceId = () => {
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('device_id', deviceId);
+  }
+  return deviceId;
+};
+
+// User articles storage key with device ID
+const getUserArticlesKey = () => {
+  const deviceId = getDeviceId();
+  return `userArticles_${deviceId}`;
+};
+
 export default function Dashboard() {
   const { user } = useAuthStore();
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
   const [selectedSentiments, setSelectedSentiments] = React.useState<('positive' | 'negative' | 'neutral')[]>([]);
   const [error, setError] = React.useState('');
   const [localArticles, setLocalArticles] = React.useState<Article[]>([]);
+  const [hasAddedSampleArticles, setHasAddedSampleArticles] = React.useState(false);
 
-  // Load articles from localStorage
+  // Load articles from localStorage with device-specific key
   React.useEffect(() => {
-    const storedArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
-    if (storedArticles.length > 0) {
+    const userArticlesKey = getUserArticlesKey();
+    const storedArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+    
+    // If no articles exist and we haven't added sample articles yet, add them to localStorage
+    if (storedArticles.length === 0 && !hasAddedSampleArticles) {
+      const timestamp = Date.now();
+      const formattedArticles = sampleArticles.map((article, index) => ({
+        id: `local-${timestamp}-${index}`,
+        title: article.title,
+        content: article.content,
+        source: article.source,
+        author: article.author,
+        image_url: article.imageUrl,
+        published_at: new Date().toISOString(),
+        url: window.location.origin + `/article/local-${timestamp}-${index}`,
+        processedArticle: {
+          id: `processed-local-${timestamp}-${index}`,
+          summary: article.content.substring(0, 150) + '...',
+          sentiment: 'neutral',
+          sentiment_explanation: 'Sentiment analysis not available for pre-loaded articles'
+        },
+        userArticleInteractions: [
+          {
+            is_read: false,
+            is_saved: false
+          }
+        ]
+      }));
+      
+      localStorage.setItem(userArticlesKey, JSON.stringify(formattedArticles));
+      setHasAddedSampleArticles(true);
+      
+      // Update our local state with the formatted articles
+      const formattedLocalArticles = formattedArticles.map((article: any) => ({
+        id: article.id,
+        title: article.title,
+        summary: article.processedArticle?.summary || article.content.substring(0, 150) + '...',
+        sentiment: article.processedArticle?.sentiment || 'neutral',
+        sentimentExplanation: article.processedArticle?.sentiment_explanation || '',
+        source: article.source,
+        publishedAt: article.published_at,
+        imageUrl: article.image_url,
+        isRead: article.userArticleInteractions?.[0]?.is_read || false,
+        isSaved: article.userArticleInteractions?.[0]?.is_saved || false,
+      }));
+      setLocalArticles(formattedLocalArticles);
+    } else if (storedArticles.length > 0) {
+      // If articles exist, format and display them
       const formattedLocalArticles = storedArticles.map((article: any) => ({
         id: article.id,
         title: article.title,
@@ -45,7 +109,7 @@ export default function Dashboard() {
       }));
       setLocalArticles(formattedLocalArticles);
     }
-  }, []);
+  }, [hasAddedSampleArticles]);
 
   // Get news articles from backend
   const { data, loading } = useQuery(GET_NEWS_ARTICLES, {
@@ -62,7 +126,8 @@ export default function Dashboard() {
 
     // Handle local articles
     if (articleId.startsWith('local-')) {
-      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const userArticlesKey = getUserArticlesKey();
+      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       if (!article) return;
 
@@ -83,7 +148,7 @@ export default function Dashboard() {
         return a;
       });
 
-      localStorage.setItem('userArticles', JSON.stringify(updatedArticles));
+      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
       
       // Update local state
       setLocalArticles(prev => 
@@ -110,7 +175,8 @@ export default function Dashboard() {
 
     // Handle local articles
     if (articleId.startsWith('local-')) {
-      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const userArticlesKey = getUserArticlesKey();
+      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       if (!article) return;
 
@@ -131,7 +197,7 @@ export default function Dashboard() {
         return a;
       });
 
-      localStorage.setItem('userArticles', JSON.stringify(updatedArticles));
+      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
       
       // Update local state
       setLocalArticles(prev => 
@@ -197,32 +263,7 @@ export default function Dashboard() {
 
   // Process articles from GraphQL response
   const backendArticles: Article[] = React.useMemo(() => {
-    if (!data?.newsArticles) return [
-      {
-        id: 'sample-1',
-        title: 'The Future of AI in Healthcare',
-        summary: 'Artificial intelligence is revolutionizing healthcare with applications in diagnostics, drug discovery, and personalized medicine.',
-        sentiment: 'positive',
-        sentimentExplanation: 'The article highlights positive advancements in healthcare technology.',
-        source: 'Tech Insights',
-        publishedAt: '2024-05-15',
-        imageUrl: '',
-        isRead: false,
-        isSaved: false
-      },
-      {
-        id: 'sample-2',
-        title: 'Quantum Computing Breakthrough',
-        summary: 'Researchers have achieved quantum supremacy with a new 128-qubit processor, opening doors to previously impossible computations.',
-        sentiment: 'positive',
-        sentimentExplanation: 'The breakthrough represents significant progress in quantum computing.',
-        source: 'Science Daily',
-        publishedAt: '2024-05-10',
-        imageUrl: '',
-        isRead: false,
-        isSaved: false
-      }
-    ];
+    if (!data?.newsArticles) return [];
 
     return data.newsArticles.map((article: any) => {
       const interaction = article.userArticleInteractions[0] || { is_read: false, is_saved: false };
@@ -231,14 +272,14 @@ export default function Dashboard() {
       return {
         id: article.id,
         title: article.title,
-        summary: processed.summary,
-        sentiment: processed.sentiment,
-        sentimentExplanation: processed.sentiment_explanation,
-        source: article.source,
-        publishedAt: article.published_at,
-        imageUrl: article.image_url,
-        isRead: interaction.is_read,
-        isSaved: interaction.is_saved,
+        summary: processed.summary || article.title,
+        sentiment: processed.sentiment || 'neutral',
+        sentimentExplanation: processed.sentiment_explanation || '',
+        source: article.source || 'Unknown',
+        publishedAt: article.published_at || new Date().toISOString(),
+        imageUrl: article.image_url || '',
+        isRead: interaction.is_read || false,
+        isSaved: interaction.is_saved || false,
       };
     });
   }, [data]);

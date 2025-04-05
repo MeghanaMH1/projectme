@@ -4,6 +4,22 @@ import { useAuthStore } from '../store/nhostAuthStore';
 import { ArrowLeft, Send, HelpCircle, Copy } from 'lucide-react';
 import { sampleArticles } from '../util/sampleArticles';
 
+// Reuse the same device ID function from Dashboard
+const getDeviceId = () => {
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('device_id', deviceId);
+  }
+  return deviceId;
+};
+
+// User articles storage key with device ID
+const getUserArticlesKey = () => {
+  const deviceId = getDeviceId();
+  return `userArticles_${deviceId}`;
+};
+
 export default function CreateArticle() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -15,31 +31,19 @@ export default function CreateArticle() {
     imageUrl: '',
   });
   const [error, setError] = React.useState('');
-  const [success, setSuccess] = React.useState(false);
+  const [success, setSuccess] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [showSampleArticles, setShowSampleArticles] = React.useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const applyArticleTemplate = (article: typeof sampleArticles[0]) => {
-    setFormData({
-      title: article.title,
-      content: article.content,
-      source: article.source,
-      author: article.author,
-      imageUrl: article.imageUrl,
-    });
-    setShowSampleArticles(false);
-    window.scrollTo(0, 0);
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess(false);
+    setSuccess('');
     setLoading(true);
 
     if (!user) {
@@ -55,41 +59,43 @@ export default function CreateArticle() {
     }
 
     try {
-      // Create a new article with a unique ID
-      const articleId = `local-${Date.now()}`;
-      const article = {
-        id: articleId,
+      // Create a new article object
+      const newArticle = {
+        id: `local-${Date.now()}`,
         title: formData.title,
         content: formData.content,
         source: formData.source,
-        author: formData.author || user.email,
-        image_url: formData.imageUrl || null,
+        author: formData.author || (user?.displayName || user?.email || 'Anonymous'),
+        image_url: formData.imageUrl,
         published_at: new Date().toISOString(),
-        url: window.location.origin + `/article/${articleId}`,
+        url: '',
         processedArticle: {
-          id: `processed-${articleId}`,
           summary: formData.content.substring(0, 150) + '...',
-          sentiment: 'neutral',
-          sentiment_explanation: 'Sentiment analysis not available for user-created articles'
+          sentiment: 'neutral', // Default sentiment
+          sentiment_explanation: 'Sentiment analysis pending'
         },
         userArticleInteractions: [
           {
-            is_read: true,
+            is_read: false,
             is_saved: false
           }
         ]
       };
 
-      // Get existing articles from localStorage or create empty array
-      const existingArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      // Retrieve existing articles
+      const userArticlesKey = getUserArticlesKey();
+      const existingArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
       
-      // Add new article to the beginning of the array
-      existingArticles.unshift(article);
+      // Add the new article
+      const updatedArticles = [...existingArticles, newArticle];
       
       // Save back to localStorage
-      localStorage.setItem('userArticles', JSON.stringify(existingArticles));
-
-      setSuccess(true);
+      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
+      
+      // Show success message
+      setSuccess('Article created successfully!');
+      
+      // Reset form
       setFormData({
         title: '',
         content: '',
@@ -100,13 +106,25 @@ export default function CreateArticle() {
       
       // Navigate to the article detail page after 2 seconds
       setTimeout(() => {
-        navigate(`/article/${articleId}`);
+        navigate(`/article/${newArticle.id}`);
       }, 2000);
     } catch (err: any) {
       setError(err.message || 'Failed to create article');
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyArticleTemplate = (article: typeof sampleArticles[0]) => {
+    setFormData({
+      title: article.title,
+      content: article.content,
+      source: article.source,
+      author: article.author,
+      imageUrl: article.imageUrl,
+    });
+    setShowSampleArticles(false);
+    window.scrollTo(0, 0);
   };
 
   const goBack = () => {
@@ -144,7 +162,7 @@ export default function CreateArticle() {
           {success && (
             <div className="mb-6 bg-green-50 dark:bg-green-900 p-4 rounded-md">
               <p className="text-sm text-green-700 dark:text-green-200">
-                Article submitted successfully! Redirecting you to the article...
+                {success}
               </p>
             </div>
           )}
