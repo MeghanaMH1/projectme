@@ -42,13 +42,10 @@ export default function Signup() {
       // Make sure we're fully signed out before signup
       await nhost.auth.signOut();
       
-      // Use correct syntax for Nhost signup options
+      // Use basic signup without the redirectTo option
       const { error, session } = await nhost.auth.signUp({
         email,
-        password,
-        options: {
-          redirectTo: `${window.location.origin}/login`,
-        }
+        password
       });
       console.log('Signup response:', { error, session });
 
