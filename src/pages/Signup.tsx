@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { nhost } from '../lib/nhost';
 import { Mail, Lock, UserPlus } from 'lucide-react';
+import { useAuthStore } from '../store/nhostAuthStore';
 
 export default function Signup() {
   const [email, setEmail] = React.useState('');
@@ -9,6 +10,7 @@ export default function Signup() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const navigate = useNavigate();
+  const { setUser, setSession } = useAuthStore();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,13 +19,25 @@ export default function Signup() {
     console.log('Signup started with:', { email, password });
 
     try {
+      // Use correct syntax for Nhost signup options
       const { error, session } = await nhost.auth.signUp({
         email,
         password,
+        options: {
+          redirectTo: `${window.location.origin}/login`,
+        }
       });
       console.log('Signup response:', { error, session });
 
       if (error) throw error;
+      
+      // Make sure to sign out immediately to prevent automatic login
+      await nhost.auth.signOut();
+      
+      // Clear any stored user info
+      setUser(null);
+      setSession(null);
+      
       console.log('Signup successful, navigating to verify-email');
       navigate('/verify-email');
     } catch (error: any) {
@@ -50,6 +64,9 @@ export default function Signup() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
             Create your account
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+            After signing up, you'll need to verify your email address
+          </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSignup}>
           {error && (
