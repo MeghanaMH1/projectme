@@ -24,6 +24,17 @@ export default function Layout() {
   };
 
   return (
+    <div>
+      <button 
+        onClick={handleSignOut}
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+      >
+        Logout
+      </button>
+    </div>
+  );
+
+  return (
     <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
       <div className="bg-white dark:bg-gray-900 min-h-screen">
         <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
