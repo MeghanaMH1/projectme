@@ -3,24 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { GET_ARTICLE_BY_ID } from '../lib/graphql/operations';
 import { useAuthStore } from '../store/nhostAuthStore';
-import { Bookmark, BookmarkCheck, Share2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, ArrowLeft, AlertCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-// Reuse the same device ID function from Dashboard
-const getDeviceId = () => {
-  let deviceId = localStorage.getItem('device_id');
-  if (!deviceId) {
-    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem('device_id', deviceId);
-  }
-  return deviceId;
-};
-
-// User articles storage key with device ID
-const getUserArticlesKey = () => {
-  const deviceId = getDeviceId();
-  return `userArticles_${deviceId}`;
-};
+// Use a global storage key that works across all devices
+const USER_ARTICLES_KEY = 'globalUserArticles';
 
 export default function ArticleDetail() {
   const { articleId } = useParams();
@@ -32,8 +19,7 @@ export default function ArticleDetail() {
   // Check localStorage for the article if it starts with "local-"
   React.useEffect(() => {
     if (articleId?.startsWith('local-')) {
-      const userArticlesKey = getUserArticlesKey();
-      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       setLocalArticle(article || null);
     }
@@ -71,8 +57,7 @@ export default function ArticleDetail() {
 
     // For local articles, handle saving in localStorage
     if (article.id.startsWith('local-')) {
-      const userArticlesKey = getUserArticlesKey();
-      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
       const updatedArticles = userArticles.map((a: any) => {
         if (a.id === article.id) {
           return {
@@ -88,11 +73,32 @@ export default function ArticleDetail() {
         return a;
       });
 
-      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
       // Force re-render to show updated saved state
       setLocalArticle(updatedArticles.find((a: any) => a.id === article.id));
     }
     // For backend articles, this would call the mutation
+  };
+
+  const handleDelete = () => {
+    if (!article || !user) return;
+
+    if (!window.confirm('Are you sure you want to delete this article?')) {
+      return;
+    }
+
+    // For local articles, handle deletion in localStorage
+    if (article.id.startsWith('local-')) {
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
+      const updatedArticles = userArticles.filter((a: any) => a.id !== article.id);
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
+      
+      // Navigate back to dashboard
+      navigate('/');
+    } else {
+      // For backend articles
+      setError('Deletion of backend articles is not supported yet');
+    }
   };
 
   const goBack = () => {
@@ -140,12 +146,23 @@ export default function ArticleDetail() {
         </div>
       )}
 
-      <button
-        onClick={goBack}
-        className="inline-flex items-center mb-6 text-blue-600 dark:text-blue-400 hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to articles
-      </button>
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={goBack}
+          className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to articles
+        </button>
+
+        {article.id.startsWith('local-') && (
+          <button
+            onClick={handleDelete}
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete Article
+          </button>
+        )}
+      </div>
 
       <article className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden">
         {article.image_url && (

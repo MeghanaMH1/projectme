@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@apollo/client';
 import { GET_NEWS_ARTICLES, MARK_ARTICLE_AS_READ, TOGGLE_SAVE_ARTICLE } from '../lib/graphql/operations';
 import NewsCard from '../components/NewsCard';
 import NewsFilters from '../components/NewsFilters';
-import { Newspaper, AlertCircle, PenSquare } from 'lucide-react';
+import { Newspaper, AlertCircle, PenSquare, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { sampleArticles } from '../util/sampleArticles';
 
@@ -21,21 +21,8 @@ interface Article {
   isSaved: boolean;
 }
 
-// Generate a device ID or get existing one
-const getDeviceId = () => {
-  let deviceId = localStorage.getItem('device_id');
-  if (!deviceId) {
-    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem('device_id', deviceId);
-  }
-  return deviceId;
-};
-
-// User articles storage key with device ID
-const getUserArticlesKey = () => {
-  const deviceId = getDeviceId();
-  return `userArticles_${deviceId}`;
-};
+// Use a global storage key that works across all devices
+const USER_ARTICLES_KEY = 'globalUserArticles';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -45,10 +32,9 @@ export default function Dashboard() {
   const [localArticles, setLocalArticles] = React.useState<Article[]>([]);
   const [hasAddedSampleArticles, setHasAddedSampleArticles] = React.useState(false);
 
-  // Load articles from localStorage with device-specific key
+  // Load articles from localStorage with global key
   React.useEffect(() => {
-    const userArticlesKey = getUserArticlesKey();
-    const storedArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+    const storedArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
     
     // If no articles exist and we haven't added sample articles yet, add them to localStorage
     if (storedArticles.length === 0 && !hasAddedSampleArticles) {
@@ -76,7 +62,7 @@ export default function Dashboard() {
         ]
       }));
       
-      localStorage.setItem(userArticlesKey, JSON.stringify(formattedArticles));
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(formattedArticles));
       setHasAddedSampleArticles(true);
       
       // Update our local state with the formatted articles
@@ -126,8 +112,7 @@ export default function Dashboard() {
 
     // Handle local articles
     if (articleId.startsWith('local-')) {
-      const userArticlesKey = getUserArticlesKey();
-      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       if (!article) return;
 
@@ -148,7 +133,7 @@ export default function Dashboard() {
         return a;
       });
 
-      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
       
       // Update local state
       setLocalArticles(prev => 
@@ -175,8 +160,7 @@ export default function Dashboard() {
 
     // Handle local articles
     if (articleId.startsWith('local-')) {
-      const userArticlesKey = getUserArticlesKey();
-      const userArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
       const article = userArticles.find((a: any) => a.id === articleId);
       if (!article) return;
 
@@ -197,7 +181,7 @@ export default function Dashboard() {
         return a;
       });
 
-      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
       
       // Update local state
       setLocalArticles(prev => 
@@ -254,6 +238,22 @@ export default function Dashboard() {
           setError('Failed to copy article link');
         });
     }
+  };
+
+  const handleDeleteArticle = (articleId: string) => {
+    if (articleId.startsWith('local-')) {
+      const userArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
+      const updatedArticles = userArticles.filter((a: any) => a.id !== articleId);
+      
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
+      
+      // Update local state
+      setLocalArticles(prev => prev.filter(a => a.id !== articleId));
+      return;
+    }
+    
+    // For backend articles we would implement deletion through a mutation
+    setError('Deletion of backend articles is not supported yet');
   };
 
   const handleResetFilters = () => {
@@ -376,6 +376,7 @@ export default function Dashboard() {
                 onToggleRead={handleToggleRead}
                 onToggleSave={handleToggleSave}
                 onShare={handleShare}
+                onDelete={handleDeleteArticle}
               />
             ))}
           </div>

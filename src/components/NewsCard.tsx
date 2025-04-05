@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, BookmarkCheck, Share2, Eye, EyeOff } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 
@@ -17,6 +17,7 @@ interface NewsCardProps {
   onToggleRead: (id: string) => void;
   onToggleSave: (id: string) => void;
   onShare: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 export default function NewsCard({
@@ -33,7 +34,16 @@ export default function NewsCard({
   onToggleRead,
   onToggleSave,
   onShare,
+  onDelete,
 }: NewsCardProps) {
+  // Function to handle article deletion with confirmation
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete && window.confirm('Are you sure you want to delete this article?')) {
+      onDelete(id);
+    }
+  };
+
   const getSentimentColor = (sentiment: string) => {
     switch (sentiment) {
       case 'positive':
@@ -96,6 +106,15 @@ export default function NewsCard({
             >
               <Share2 size={18} />
             </button>
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                title="Delete article"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         </div>
         <Link to={`/article/${id}`} className="block group">

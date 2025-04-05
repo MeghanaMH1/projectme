@@ -4,21 +4,8 @@ import { useAuthStore } from '../store/nhostAuthStore';
 import { ArrowLeft, Send, HelpCircle, Copy } from 'lucide-react';
 import { sampleArticles } from '../util/sampleArticles';
 
-// Reuse the same device ID function from Dashboard
-const getDeviceId = () => {
-  let deviceId = localStorage.getItem('device_id');
-  if (!deviceId) {
-    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem('device_id', deviceId);
-  }
-  return deviceId;
-};
-
-// User articles storage key with device ID
-const getUserArticlesKey = () => {
-  const deviceId = getDeviceId();
-  return `userArticles_${deviceId}`;
-};
+// Use a global storage key that works across all devices
+const USER_ARTICLES_KEY = 'globalUserArticles';
 
 export default function CreateArticle() {
   const navigate = useNavigate();
@@ -83,14 +70,13 @@ export default function CreateArticle() {
       };
 
       // Retrieve existing articles
-      const userArticlesKey = getUserArticlesKey();
-      const existingArticles = JSON.parse(localStorage.getItem(userArticlesKey) || '[]');
+      const existingArticles = JSON.parse(localStorage.getItem(USER_ARTICLES_KEY) || '[]');
       
       // Add the new article
       const updatedArticles = [...existingArticles, newArticle];
       
       // Save back to localStorage
-      localStorage.setItem(userArticlesKey, JSON.stringify(updatedArticles));
+      localStorage.setItem(USER_ARTICLES_KEY, JSON.stringify(updatedArticles));
       
       // Show success message
       setSuccess('Article created successfully!');
