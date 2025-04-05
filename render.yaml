@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: news-digest
+    env: node
+    build:
+      command: npm install && npm run build
+      publish: dist
+    static:
+      dir: dist
+      spa: true
+    envVars:
+      - key: VITE_API_URL
+        value: ${{API_URL}}

@@ -1,0 +1,157 @@
+{
+  "name": "News Fetching and Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "news-fetch",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://newsapi.org/v2/everything",
+        "authentication": "headerAuth",
+        "headerParameters": {
+          "x-api-key": "={{$node.Webhook.json.apiKey}}"
+        },
+        "queryParameters": {
+          "q": "={{$node.Webhook.json.topics.join(' OR ')}}",
+          "language": "en",
+          "sortBy": "publishedAt",
+          "pageSize": "20"
+        }
+      },
+      "name": "Fetch News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "title",
+              "value": "={{$item.title}}"
+            },
+            {
+              "name": "content",
+              "value": "={{$item.description}}"
+            },
+            {
+              "name": "source",
+              "value": "={{$item.source.name}}"
+            },
+            {
+              "name": "author",
+              "value": "={{$item.author}}"
+            },
+            {
+              "name": "publishedAt",
+              "value": "={{$item.publishedAt}}"
+            },
+            {
+              "name": "url",
+              "value": "={{$item.url}}"
+            },
+            {
+              "name": "imageUrl",
+              "value": "={{$item.urlToImage}}"
+            }
+          ]
+        }
+      },
+      "name": "Format Articles",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "headerAuth",
+        "headerParameters": {
+          "Authorization": "Bearer {{$node.Webhook.json.openRouterKey}}",
+          "Content-Type": "application/json"
+        },
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"model\": \"anthropic/claude-2\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful assistant that analyzes news articles to provide summaries and sentiment analysis.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": `Please analyze this news article and provide:\n1. A concise summary (max 3 sentences)\n2. Sentiment (positive, negative, or neutral)\n3. Brief explanation of the sentiment\n\nArticle: ${$item.title}\n${$item.content}`\n    }\n  ],\n  \"temperature\": 0.7\n}"
+      },
+      "name": "Process with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "news_articles",
+        "columns": "title, content, source, author, published_at, url, image_url",
+        "additionalFields": {}
+      },
+      "name": "Save to Nhost",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Nhost Database"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch News": {
+      "main": [
+        [
+          {
+            "node": "Format Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Articles": {
+      "main": [
+        [
+          {
+            "node": "Process with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process with AI": {
+      "main": [
+        [
+          {
+            "node": "Save to Nhost",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

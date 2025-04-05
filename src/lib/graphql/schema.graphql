@@ -1,0 +1,47 @@
+# User preferences table to store user's news preferences
+type UserPreferences {
+  id: ID! # Primary key
+  user_id: ID! # Foreign key to Nhost auth user
+  topics: [String!]! # Array of preferred topics
+  keywords: [String!] # Array of keywords of interest
+  preferred_sources: [String!] # Array of preferred news sources
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+# News articles table to store fetched news articles
+type NewsArticle {
+  id: ID! # Primary key
+  title: String!
+  content: String!
+  source: String!
+  author: String
+  published_at: DateTime!
+  url: String!
+  image_url: String
+  created_at: DateTime!
+}
+
+# Processed articles table to store AI-processed content
+type ProcessedArticle {
+  id: ID! # Primary key
+  article_id: ID! # Foreign key to news_articles
+  summary: String! # AI-generated summary
+  sentiment: String! # Positive, negative, or neutral
+  sentiment_explanation: String! # Explanation of sentiment analysis
+  created_at: DateTime!
+}
+
+# User interactions table to track user engagement with articles
+type UserArticleInteraction {
+  id: ID! # Primary key
+  user_id: ID! # Foreign key to Nhost auth user
+  article_id: ID! # Foreign key to processed_articles
+  is_read: Boolean! # Whether the user has read the article
+  is_saved: Boolean! # Whether the user has saved the article
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+# Scalar type for DateTime
+scalar DateTime
