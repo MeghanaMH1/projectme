@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/nhostAuthStore';
-import { Sun, Moon, Menu, X, Home, Newspaper, User as UserIcon, LogOut, Settings, Bookmark } from 'lucide-react';
+import { Sun, Moon, Menu, X, Home, Newspaper, User as UserIcon, LogOut, Settings, Bookmark, PenSquare } from 'lucide-react';
 
 export default function Layout() {
   const [darkMode, setDarkMode] = React.useState(false);
@@ -52,6 +52,13 @@ export default function Layout() {
                 </div>
               </div>
               <div className="flex items-center">
+                <Link 
+                  to="/create-article"
+                  className="hidden sm:inline-flex mr-4 items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <PenSquare className="h-4 w-4 mr-1" />
+                  Write Article
+                </Link>
                 <button
                   onClick={toggleDarkMode}
                   className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
@@ -78,6 +85,54 @@ export default function Layout() {
             </div>
           </div>
         </nav>
+
+        {/* Mobile menu, show/hide based on menu state */}
+        {menuOpen && (
+          <div className="sm:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <Link
+                to="/"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Home className="inline-block h-5 w-5 mr-2" />
+                Dashboard
+              </Link>
+              <Link
+                to="/preferences"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Settings className="inline-block h-5 w-5 mr-2" />
+                News Preferences
+              </Link>
+              <Link
+                to="/saved"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Bookmark className="inline-block h-5 w-5 mr-2" />
+                Saved Articles
+              </Link>
+              <Link
+                to="/profile"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <UserIcon className="inline-block h-5 w-5 mr-2" />
+                Profile
+              </Link>
+              <Link
+                to="/create-article"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setMenuOpen(false)}
+              >
+                <PenSquare className="inline-block h-5 w-5 mr-2" />
+                Write Article
+              </Link>
+            </div>
+          </div>
+        )}
 
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Outlet />

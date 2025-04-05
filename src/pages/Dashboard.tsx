@@ -4,7 +4,8 @@ import { useQuery, useMutation } from '@apollo/client';
 import { GET_NEWS_ARTICLES, MARK_ARTICLE_AS_READ, TOGGLE_SAVE_ARTICLE } from '../lib/graphql/operations';
 import NewsCard from '../components/NewsCard';
 import NewsFilters from '../components/NewsFilters';
-import { Newspaper, AlertCircle } from 'lucide-react';
+import { Newspaper, AlertCircle, PenSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface Article {
   id: string;
@@ -24,8 +25,29 @@ export default function Dashboard() {
   const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
   const [selectedSentiments, setSelectedSentiments] = React.useState<('positive' | 'negative' | 'neutral')[]>([]);
   const [error, setError] = React.useState('');
+  const [localArticles, setLocalArticles] = React.useState<Article[]>([]);
 
-  // Get news articles
+  // Load articles from localStorage
+  React.useEffect(() => {
+    const storedArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+    if (storedArticles.length > 0) {
+      const formattedLocalArticles = storedArticles.map((article: any) => ({
+        id: article.id,
+        title: article.title,
+        summary: article.processedArticle?.summary || article.content.substring(0, 150) + '...',
+        sentiment: article.processedArticle?.sentiment || 'neutral',
+        sentimentExplanation: article.processedArticle?.sentiment_explanation || '',
+        source: article.source,
+        publishedAt: article.published_at,
+        imageUrl: article.image_url,
+        isRead: article.userArticleInteractions?.[0]?.is_read || false,
+        isSaved: article.userArticleInteractions?.[0]?.is_saved || false,
+      }));
+      setLocalArticles(formattedLocalArticles);
+    }
+  }, []);
+
+  // Get news articles from backend
   const { data, loading } = useQuery(GET_NEWS_ARTICLES, {
     variables: { userId: user?.id, limit: 50 },
     skip: !user?.id,
@@ -38,6 +60,39 @@ export default function Dashboard() {
   const handleToggleRead = async (articleId: string) => {
     if (!user) return;
 
+    // Handle local articles
+    if (articleId.startsWith('local-')) {
+      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const article = userArticles.find((a: any) => a.id === articleId);
+      if (!article) return;
+
+      const isCurrentlyRead = article.userArticleInteractions?.[0]?.is_read || false;
+      
+      const updatedArticles = userArticles.map((a: any) => {
+        if (a.id === articleId) {
+          return {
+            ...a,
+            userArticleInteractions: [
+              { 
+                ...a.userArticleInteractions?.[0] || {},
+                is_read: !isCurrentlyRead 
+              }
+            ]
+          };
+        }
+        return a;
+      });
+
+      localStorage.setItem('userArticles', JSON.stringify(updatedArticles));
+      
+      // Update local state
+      setLocalArticles(prev => 
+        prev.map(a => a.id === articleId ? {...a, isRead: !isCurrentlyRead} : a)
+      );
+      return;
+    }
+
+    // Handle backend articles
     try {
       await markAsRead({
         variables: {
@@ -53,15 +108,48 @@ export default function Dashboard() {
   const handleToggleSave = async (articleId: string) => {
     if (!user) return;
 
-    const article = articles.find(a => a.id === articleId);
-    if (!article) return;
+    // Handle local articles
+    if (articleId.startsWith('local-')) {
+      const userArticles = JSON.parse(localStorage.getItem('userArticles') || '[]');
+      const article = userArticles.find((a: any) => a.id === articleId);
+      if (!article) return;
+
+      const isCurrentlySaved = article.userArticleInteractions?.[0]?.is_saved || false;
+      
+      const updatedArticles = userArticles.map((a: any) => {
+        if (a.id === articleId) {
+          return {
+            ...a,
+            userArticleInteractions: [
+              { 
+                ...a.userArticleInteractions?.[0] || {},
+                is_saved: !isCurrentlySaved 
+              }
+            ]
+          };
+        }
+        return a;
+      });
+
+      localStorage.setItem('userArticles', JSON.stringify(updatedArticles));
+      
+      // Update local state
+      setLocalArticles(prev => 
+        prev.map(a => a.id === articleId ? {...a, isSaved: !isCurrentlySaved} : a)
+      );
+      return;
+    }
+
+    // For backend articles
+    const backendArticle = backendArticles.find(a => a.id === articleId);
+    if (!backendArticle) return;
 
     try {
       await toggleSave({
         variables: {
           userId: user.id,
           articleId,
-          isSaved: !article.isSaved,
+          isSaved: !backendArticle.isSaved,
         },
       });
     } catch (err: any) {
@@ -70,13 +158,29 @@ export default function Dashboard() {
   };
 
   const handleShare = (articleId: string) => {
-    // Implement sharing functionality
-    const article = data?.newsArticles.find(
-      (a: any) => a.id === articleId
-    );
+    // For local articles
+    if (articleId.startsWith('local-')) {
+      const article = localArticles.find(a => a.id === articleId);
+      if (article) {
+        const shareUrl = window.location.origin + `/article/${articleId}`;
+        navigator.clipboard.writeText(shareUrl)
+          .then(() => {
+            alert('Article link copied to clipboard!');
+          })
+          .catch(() => {
+            setError('Failed to copy article link');
+          });
+      }
+      return;
+    }
     
+    // For backend articles
+    const article = backendArticles.find(a => a.id === articleId);
     if (article) {
-      navigator.clipboard.writeText(article.url)
+      const shareUrl = data?.newsArticles.find((a: any) => a.id === articleId)?.url || 
+                       window.location.origin + `/article/${articleId}`;
+      
+      navigator.clipboard.writeText(shareUrl)
         .then(() => {
           alert('Article link copied to clipboard!');
         })
@@ -92,7 +196,7 @@ export default function Dashboard() {
   };
 
   // Process articles from GraphQL response
-  const articles: Article[] = React.useMemo(() => {
+  const backendArticles: Article[] = React.useMemo(() => {
     if (!data?.newsArticles) return [
       {
         id: 'sample-1',
@@ -139,6 +243,14 @@ export default function Dashboard() {
     });
   }, [data]);
 
+  // Combine backend and local articles
+  const articles = React.useMemo(() => {
+    // Sort by date, newest first
+    return [...backendArticles, ...localArticles].sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+  }, [backendArticles, localArticles]);
+
   // Filter articles based on selected topics and sentiments
   const filteredArticles = React.useMemo(() => {
     return articles.filter(article => {
@@ -156,13 +268,21 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 shadow sm:rounded-lg p-6">
-        <div className="flex items-center space-x-4 mb-6">
-          <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
-            <Newspaper className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+              <Newspaper className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Your News Digest
+            </h1>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Your News Digest
-          </h1>
+          <Link
+            to="/create-article"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <PenSquare className="h-4 w-4 mr-2" /> Write Article
+          </Link>
         </div>
 
         {error && (
@@ -180,7 +300,7 @@ export default function Dashboard() {
           onResetFilters={handleResetFilters}
         />
 
-        {loading ? (
+        {loading && localArticles.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-600 dark:text-gray-400">Loading news articles...</p>
           </div>
@@ -188,6 +308,14 @@ export default function Dashboard() {
           <div className="text-center py-8 flex flex-col items-center">
             <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-600 dark:text-gray-400">No articles found matching your filters.</p>
+            <div className="mt-4">
+              <Link
+                to="/create-article"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <PenSquare className="h-4 w-4 mr-2" /> Add Your First Article
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

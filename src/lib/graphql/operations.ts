@@ -76,6 +76,32 @@ export const GET_NEWS_ARTICLES = gql`
   }
 `;
 
+// Get a single article by ID
+export const GET_ARTICLE_BY_ID = gql`
+  query GetArticleById($articleId: ID!, $userId: ID!) {
+    newsArticle(id: $articleId) {
+      id
+      title
+      content
+      source
+      author
+      published_at
+      url
+      image_url
+      processedArticle {
+        id
+        summary
+        sentiment
+        sentiment_explanation
+      }
+      userArticleInteractions(where: { user_id: { _eq: $userId } }) {
+        is_read
+        is_saved
+      }
+    }
+  }
+`;
+
 export const GET_SAVED_ARTICLES = gql`
   query GetSavedArticles($userId: ID!) {
     userArticleInteractions(
@@ -95,6 +121,38 @@ export const GET_SAVED_ARTICLES = gql`
           sentiment
           sentiment_explanation
         }
+      }
+    }
+  }
+`;
+
+// Create a new article
+export const CREATE_ARTICLE = gql`
+  mutation CreateArticle(
+    $title: String!,
+    $content: String!,
+    $source: String!,
+    $author: String,
+    $imageUrl: String,
+    $userId: ID!
+  ) {
+    insertNewsArticle(
+      object: {
+        title: $title,
+        content: $content,
+        source: $source,
+        author: $author,
+        image_url: $imageUrl,
+        published_at: "now()",
+        url: ""
+      }
+    ) {
+      id
+      title
+      userArticleInteractions(
+        objects: [{ user_id: $userId, is_read: false, is_saved: false }]
+      ) {
+        id
       }
     }
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bookmark, BookmarkCheck, Share2, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface NewsCardProps {
   id: string;
@@ -62,13 +63,13 @@ export default function NewsCard({
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${isRead ? 'opacity-75' : ''}`}>
       {imageUrl && (
-        <div className="h-48 w-full overflow-hidden">
+        <Link to={`/article/${id}`} className="block h-48 w-full overflow-hidden">
           <img
             src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform hover:scale-105"
           />
-        </div>
+        </Link>
       )}
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
@@ -97,8 +98,12 @@ export default function NewsCard({
             </button>
           </div>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
-        <p className="text-gray-700 dark:text-gray-300 mb-3">{summary}</p>
+        <Link to={`/article/${id}`} className="block group">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            {title}
+          </h3>
+          <p className="text-gray-700 dark:text-gray-300 mb-3">{summary}</p>
+        </Link>
         <div className="flex items-center">
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSentimentColor(sentiment)}`}
@@ -110,6 +115,14 @@ export default function NewsCard({
               {sentimentExplanation}
             </span>
           )}
+        </div>
+        <div className="mt-4">
+          <Link 
+            to={`/article/${id}`}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            Read more →
+          </Link>
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import NewsPreferences from './pages/NewsPreferences';
 import SavedArticles from './pages/SavedArticles';
+import ArticleDetail from './pages/ArticleDetail';
+import CreateArticle from './pages/CreateArticle';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
@@ -65,6 +67,8 @@ function App() {
           <Route path="profile" element={<Profile />} />
           <Route path="preferences" element={<NewsPreferences />} />
           <Route path="saved" element={<SavedArticles />} />
+          <Route path="article/:articleId" element={<ArticleDetail />} />
+          <Route path="create-article" element={<CreateArticle />} />
         </Route>
       </Routes>
     </BrowserRouter>
