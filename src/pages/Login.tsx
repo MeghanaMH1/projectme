@@ -13,6 +13,20 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, setUser, setSession } = useAuthStore();
 
+  // Force sign out on component mount to clear any existing sessions
+  React.useEffect(() => {
+    const clearSession = async () => {
+      try {
+        await nhost.auth.signOut();
+        setUser(null);
+        setSession(null);
+      } catch (err) {
+        console.error("Error signing out:", err);
+      }
+    };
+    clearSession();
+  }, [setUser, setSession]);
+
   // Redirect if user is already logged in
   React.useEffect(() => {
     if (user) {
@@ -34,6 +48,9 @@ export default function Login() {
     }
 
     try {
+      // Make sure user is signed out before attempting login
+      await nhost.auth.signOut();
+      
       const response = await nhost.auth.signIn({
         email,
         password,
@@ -67,6 +84,13 @@ export default function Login() {
         setNeedsVerification(true);
       } else if (err.message.includes('network')) {
         setError('Network error - please check your connection');
+      } else if (err.message.includes('already signed in')) {
+        // Handle the "already signed in" error
+        setError('Session conflict detected. Please try again.');
+        // Force sign out again
+        await nhost.auth.signOut();
+        setUser(null);
+        setSession(null);
       } else {
         setError(err.message || 'Login failed. Please try again.');
       }

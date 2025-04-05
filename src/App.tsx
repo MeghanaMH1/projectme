@@ -20,34 +20,51 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const { setUser, setSession } = useAuthStore();
+  const [initializing, setInitializing] = React.useState(true);
 
   React.useEffect(() => {
+    const initAuth = async () => {
+      try {
+        // Force sign out to clear any lingering sessions
+        await nhost.auth.signOut();
+        
+        // Get fresh session state
+        const currentSession = nhost.auth.getSession();
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-    // Set up auth state listener
-    try {
-      // Instead of using getSession which may not return a Promise,
-      // use a simpler approach to get the current state
-      const currentSession = nhost.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+        // Set up auth state listener for changes
+        const unsubscribe = nhost.auth.onAuthStateChanged((event, session) => {
+          console.log("Auth state changed:", event, !!session);
+          setSession(session);
+          setUser(session?.user ?? null);
+        });
 
-      // Set up auth state listener for changes
-      const unsubscribe = nhost.auth.onAuthStateChanged((event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-      });
+        setInitializing(false);
 
-      return () => {
-        if (typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } catch (error) {
-      console.error("Error in Nhost authentication:", error);
-      setSession(null);
-      setUser(null);
-    }
+        return () => {
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
+        };
+      } catch (error) {
+        console.error("Error in Nhost authentication:", error);
+        setSession(null);
+        setUser(null);
+        setInitializing(false);
+      }
+    };
+
+    initAuth();
   }, [setUser, setSession]);
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>

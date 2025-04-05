@@ -12,13 +12,36 @@ export default function Signup() {
   const navigate = useNavigate();
   const { setUser, setSession } = useAuthStore();
 
+  // Force sign out on component mount to clear any existing sessions
+  React.useEffect(() => {
+    const clearSession = async () => {
+      try {
+        await nhost.auth.signOut();
+        setUser(null);
+        setSession(null);
+      } catch (err) {
+        console.error("Error signing out:", err);
+      }
+    };
+    clearSession();
+  }, [setUser, setSession]);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     console.log('Signup started with:', { email, password });
 
+    if (!email || !password) {
+      setError('Email and password are required');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Make sure we're fully signed out before signup
+      await nhost.auth.signOut();
+      
       // Use correct syntax for Nhost signup options
       const { error, session } = await nhost.auth.signUp({
         email,
@@ -29,7 +52,15 @@ export default function Signup() {
       });
       console.log('Signup response:', { error, session });
 
-      if (error) throw error;
+      if (error) {
+        // Handle "already signed in" error separately
+        if (error.message.includes('already signed in')) {
+          await nhost.auth.signOut();
+          setError('Session conflict detected. Please try again.');
+          return;
+        }
+        throw error;
+      }
       
       // Make sure to sign out immediately to prevent automatic login
       await nhost.auth.signOut();
