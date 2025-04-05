@@ -20,17 +20,6 @@ function App() {
   const { setUser, setSession } = useAuthStore();
 
   React.useEffect(() => {
-    // Temporary development mode - auto login with test credentials
-    if (import.meta.env.DEV) {
-      const testUser = {
-        id: 'test-user-id',
-        email: 'test@example.com',
-        displayName: 'Test User'
-      };
-      setUser(testUser);
-      setSession({ user: testUser });
-      return;
-    }
 
     // Set up auth state listener
     try {

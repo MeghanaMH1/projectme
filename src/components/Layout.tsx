@@ -6,7 +6,7 @@ import { Sun, Moon, Menu, X, Home, Newspaper, User as UserIcon, LogOut, Settings
 export default function Layout() {
   const [darkMode, setDarkMode] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, setUser, setSession } = useAuthStore();
   const navigate = useNavigate();
 
   const toggleDarkMode = () => {
@@ -14,25 +14,13 @@ export default function Layout() {
     document.documentElement.classList.toggle('dark');
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  const handleSignOut = () => {
+    // Directly clear the user and session without waiting for nhost
+    setUser(null);
+    setSession(null);
+    // Navigate to login
+    navigate('/login');
   };
-
-  return (
-    <div>
-      <button 
-        onClick={handleSignOut}
-        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-      >
-        Logout
-      </button>
-    </div>
-  );
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
